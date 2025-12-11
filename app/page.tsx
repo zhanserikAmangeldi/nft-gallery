@@ -1,65 +1,119 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
+
+// CONFIGURATION
+const CONTRACT_ADDRESS = "0x601E3BaD2A304c86A271CE13dcd187A450c9Dd29"; 
+// Start with 10 for demo speed, or fetch totalSupply() if you want to be advanced
+const COLLECTION_SIZE = 10; 
+const BASE_URI = "https://orange-additional-whippet-196.mypinata.cloud/ipfs/bafybeigbphpzru4h323dfqh7asdopkpyphkl4dvnknp7xltikdxvuelk2a/";
 
 export default function Home() {
+  const [nfts, setNfts] = useState([]);
+  const [filteredNfts, setFilteredNfts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [programFilter, setProgramFilter] = useState("All");
+
+  useEffect(() => {
+    fetchNFTs();
+  }, []);
+
+  useEffect(() => {
+    filterData();
+  }, [searchTerm, programFilter, nfts]);
+
+  const fetchNFTs = async () => {
+    let tempNfts = [];
+    // In a real prod env, we would use Alchemy/Infura API to fetch these efficiently
+    // For this demo, we fetch the JSONs directly from IPFS gateway
+    for (let i = 1; i <= COLLECTION_SIZE; i++) {
+      try {
+        const response = await fetch(`${BASE_URI}${i}.json`);
+        const metadata = await response.json();
+        
+        // Convert IPFS image link to Gateway link for display
+        const imgLink = metadata.image.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/");
+        
+        tempNfts.push({
+            id: i,
+            name: metadata.attributes.find(a => a.trait_type === "Student Name").value,
+            program: metadata.attributes.find(a => a.trait_type === "Program").value,
+            grade: metadata.attributes.find(a => a.trait_type === "Grade").value,
+            image: imgLink
+        });
+      } catch (err) {
+        console.error("Error fetching NFT", i, err);
+      }
+    }
+    setNfts(tempNfts);
+    setFilteredNfts(tempNfts);
+  };
+
+  const filterData = () => {
+    let result = nfts;
+
+    // Search Logic
+    if (searchTerm) {
+      result = result.filter(nft => 
+        nft.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Dropdown Logic
+    if (programFilter !== "All") {
+      result = result.filter(nft => nft.program === programFilter);
+    }
+
+    setFilteredNfts(result);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen p-10 bg-gray-100">
+      <h1 className="text-4xl font-bold mb-8 text-center text-blue-800">Graduate Certificate Gallery</h1>
+      
+      {/* Search & Filter Section */}
+      <div className="flex flex-col md:flex-row gap-4 mb-8 justify-center">
+        <input 
+          type="text" 
+          placeholder="Search by Student Name..." 
+          className="p-3 rounded border border-gray-300 w-full md:w-1/3 text-black"
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        
+        <select 
+          className="p-3 rounded border border-gray-300 text-black"
+          onChange={(e) => setProgramFilter(e.target.value)}
+        >
+          <option value="All">All Programs</option>
+          <option value="Blockchain 101">Blockchain 101</option>
+          <option value="Advanced Solidity">Advanced Solidity</option>
+          <option value="DeFi Mastery">DeFi Mastery</option>
+          <option value="NFT Architecture">NFT Architecture</option>
+        </select>
+      </div>
+
+      {/* Gallery Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {filteredNfts.map((nft) => (
+          <div key={nft.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:scale-105 transition">
+            <img src={nft.image} alt={nft.name} className="w-full h-48 object-cover" />
+            <div className="p-4">
+              <h2 className="text-xl font-bold text-gray-800">{nft.name}</h2>
+              <p className="text-gray-600">Program: {nft.program}</p>
+              <div className="mt-2 inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-semibold">
+                Grade: {nft.grade}
+              </div>
+              <a 
+                href={`https://testnets.opensea.io/assets/sepolia/${CONTRACT_ADDRESS}/${nft.id}`} 
+                target="_blank" 
+                className="block mt-4 text-center text-blue-500 hover:underline"
+              >
+                View on OpenSea
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
